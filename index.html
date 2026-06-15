@@ -58,6 +58,10 @@
     border:1px solid var(--line); border-radius:8px; margin-top:4px;
     background:#fff; color:var(--text);
   }
+  label.field{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  label.field:last-child{margin-bottom:0;}
+  label.field > span{flex:none; width:64px; font-size:14px; color:var(--sub); font-weight:700;}
+  label.field > input{flex:1; width:auto; margin-top:0;}
   input:focus{outline:2px solid var(--accent); border-color:var(--accent);}
   /* iPhoneの日付入力が横にはみ出すのを防ぐ */
   input[type="date"]{
@@ -89,6 +93,7 @@
     text-align:right; color:var(--text); font-variant-numeric:tabular-nums;
   }
   input.cell.nameIn{text-align:left; font-weight:700; font-size:16px; padding:0 4px;}
+  input.cell.fhInput{background:#e8f1fb; border-color:#b8d4f0;}
   .calcCell{
     background:#f2f7f4; color:var(--accent); font-weight:700;
     font-variant-numeric:tabular-nums; justify-content:flex-end;
@@ -114,6 +119,7 @@
   .legend .markBs{background:var(--bsrow); border:1px solid #ecd9a0;}
   .legend .markCalc{background:#f2f7f4; border:1px solid var(--accent);}
   .legend .markFs{background:#fff; border:1px solid var(--line);}
+  .legend .markFh{background:#e8f1fb; border:1px solid #b8d4f0;}
 
   .addBtns{display:flex; gap:10px; margin:14px 0;}
   .addBtns button{
@@ -188,11 +194,10 @@
 <!-- ========== 入力画面 ========== -->
 <main id="editView" class="hidden">
   <section class="card">
-    <div class="cardHead">測量情報</div>
-    <label>測量名
+    <label class="field"><span>測量名</span>
       <input id="svName" placeholder="例：測量内容">
     </label>
-    <label>日付
+    <label class="field"><span>日付</span>
       <input type="date" id="svDate">
     </label>
   </section>
@@ -216,7 +221,8 @@
       <div class="lrow"><span class="mark markBs"></span><span>黄色の行＝器械を据えた点<br>（BSとGHを入力 → IH自動計算）</span></div>
       <div class="lrow"><span class="mark markCalc"></span><span>緑色＝自動計算</span></div>
       <div class="lrow"><span class="mark markFs"></span><span>白い行＝測った点（FSを入力 → GH自動計算）</span></div>
-      <div class="lrow"><span>FH＝計画高（手入力）／ 差＝FH−GH（自動計算）</span></div>
+      <div class="lrow"><span class="mark markFh"></span><span>水色の欄＝FH（計画高・手入力）</span></div>
+      <div class="lrow"><span>差＝FH−GH（自動計算）</span></div>
       <div class="lrow"><span>※単位はすべて mm</span></div>
     </div>
   </section>
@@ -461,8 +467,10 @@ function renderRows(){
       row.appendChild(numInput(r.fs, v=>{ r.fs = v; }));
       // GH（自動）
       row.appendChild(calcCell('ghCell'));
-      // FH入力（計画高・手入力）
-      row.appendChild(numInput(r.fh, v=>{ r.fh = v; }));
+      // FH入力（計画高・手入力・水色）
+      const fhIn = numInput(r.fh, v=>{ r.fh = v; });
+      fhIn.classList.add('fhInput');
+      row.appendChild(fhIn);
       // 差（自動・FH−GH）
       row.appendChild(calcCell('saCell'));
     }
