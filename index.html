@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1e3a5f">
 <meta name="robots" content="noindex, nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -67,29 +67,28 @@
   }
 
   /* ======== 野帳テーブル ======== */
-  .tableScroll{ overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
+  .tableScroll{ overflow:visible; }
   .grid{
     display:grid;
-    grid-template-columns: 90px repeat(6, 60px) 26px;
-    gap:4px;
+    grid-template-columns: 1.7fr repeat(6, 1fr) 18px;
+    gap:2px;
     align-items:stretch;
     margin-bottom:4px;
-    width:max-content;
   }
   .gHead{
     font-size:12px; font-weight:700; color:var(--sub);
     text-align:center; padding:4px 0 2px;
   }
   .cell{
-    min-height:40px; border-radius:6px; font-size:16px;
+    min-height:40px; border-radius:6px; font-size:12px;
     display:flex; align-items:center; justify-content:flex-end;
-    padding:0 6px;
+    padding:0 2px;
   }
   input.cell{
     width:100%; border:1px solid var(--line); background:#fff;
     text-align:right; color:var(--text); font-variant-numeric:tabular-nums;
   }
-  input.cell.nameIn{text-align:left; font-weight:700;}
+  input.cell.nameIn{text-align:left; font-weight:700; font-size:16px; padding:0 4px;}
   .calcCell{
     background:#f2f7f4; color:var(--accent); font-weight:700;
     font-variant-numeric:tabular-nums; justify-content:flex-end;
@@ -217,8 +216,8 @@
       <div class="lrow"><span class="mark markBs"></span><span>黄色の行＝器械を据えた点<br>（BSとGHを入力 → IH自動計算）</span></div>
       <div class="lrow"><span class="mark markCalc"></span><span>緑色＝自動計算</span></div>
       <div class="lrow"><span class="mark markFs"></span><span>白い行＝測った点（FSを入力 → GH自動計算）</span></div>
-      <div class="lrow"><span>FH＝計画高（手入力）／ 差＝GH−FH（自動計算）</span></div>
-      <div class="lrow"><span>※表は横にスクロールできます。単位はすべて mm</span></div>
+      <div class="lrow"><span>FH＝計画高（手入力）／ 差＝FH−GH（自動計算）</span></div>
+      <div class="lrow"><span>※単位はすべて mm</span></div>
     </div>
   </section>
 
@@ -316,7 +315,7 @@ function compute(s){
       const fs = num(r.fs);
       const gh = (ih != null && fs != null) ? ih - fs : null;
       const fh = num(r.fh);
-      const sa = (gh != null && fh != null) ? gh - fh : null;
+      const sa = (gh != null && fh != null) ? fh - gh : null;
       out.rows.push({ ih: null, gh, sa });
       if(gh != null) out.last = gh;
     }
@@ -464,7 +463,7 @@ function renderRows(){
       row.appendChild(calcCell('ghCell'));
       // FH入力（計画高・手入力）
       row.appendChild(numInput(r.fh, v=>{ r.fh = v; }));
-      // 差（自動・GH−FH）
+      // 差（自動・FH−GH）
       row.appendChild(calcCell('saCell'));
     }
 
