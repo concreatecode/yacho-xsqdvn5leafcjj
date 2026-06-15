@@ -67,12 +67,14 @@
   }
 
   /* ======== 野帳テーブル ======== */
+  .tableScroll{ overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
   .grid{
     display:grid;
-    grid-template-columns: 1.15fr .95fr .95fr .95fr .95fr 26px;
+    grid-template-columns: 90px repeat(6, 60px) 26px;
     gap:4px;
     align-items:stretch;
     margin-bottom:4px;
+    width:max-content;
   }
   .gHead{
     font-size:12px; font-weight:700; color:var(--sub);
@@ -198,20 +200,25 @@
 
   <section class="card">
     <div class="cardHead">野帳</div>
-    <div class="grid" id="gridHead">
-      <div class="gHead" style="text-align:left;">測点</div>
-      <div class="gHead">BS</div>
-      <div class="gHead">IH</div>
-      <div class="gHead">FS</div>
-      <div class="gHead">GH</div>
-      <div class="gHead"></div>
+    <div class="tableScroll">
+      <div class="grid" id="gridHead">
+        <div class="gHead" style="text-align:left;">測点</div>
+        <div class="gHead">BS</div>
+        <div class="gHead">IH</div>
+        <div class="gHead">FS</div>
+        <div class="gHead">GH</div>
+        <div class="gHead">FH</div>
+        <div class="gHead">差</div>
+        <div class="gHead"></div>
+      </div>
+      <div id="rowsArea"></div>
     </div>
-    <div id="rowsArea"></div>
     <div class="legend">
       <div class="lrow"><span class="mark markBs"></span><span>黄色の行＝器械を据えた点<br>（BSとGHを入力 → IH自動計算）</span></div>
       <div class="lrow"><span class="mark markCalc"></span><span>緑色＝自動計算</span></div>
       <div class="lrow"><span class="mark markFs"></span><span>白い行＝測った点（FSを入力 → GH自動計算）</span></div>
-      <div class="lrow"><span>※単位はすべて mm</span></div>
+      <div class="lrow"><span>FH＝計画高（手入力）／ 差＝GH−FH（自動計算）</span></div>
+      <div class="lrow"><span>※表は横にスクロールできます。単位はすべて mm</span></div>
     </div>
   </section>
 
@@ -260,7 +267,7 @@ function migrateV1(){
     for(const r of (s.rows || [])){
       const fs = num(r.fs);
       const gh = (ih != null && fs != null) ? ih - fs : null;
-      rows.push({kind:'FS', name: r.name || '', fs: r.fs || '', bs:'', gh:''});
+      rows.push({kind:'FS', name: r.name || '', fs: r.fs || '', bs:'', gh:'', fh:''});
       if(r.type === 'TP'){
         rows.push({kind:'BS', name: r.name || '', bs: r.bs || '', gh: gh == null ? '' : String(Math.round(gh*1000)/1000), fs:''});
         ih = addNum(gh, num(r.bs));
@@ -303,12 +310,14 @@ function compute(s){
     if(r.kind === 'BS'){
       const gh = num(r.gh), bs = num(r.bs);
       ih = (gh != null && bs != null) ? gh + bs : null;
-      out.rows.push({ ih, gh: null });
+      out.rows.push({ ih, gh: null, sa: null });
       if(gh != null) out.last = gh;
     }else{
       const fs = num(r.fs);
       const gh = (ih != null && fs != null) ? ih - fs : null;
-      out.rows.push({ ih: null, gh });
+      const fh = num(r.fh);
+      const sa = (gh != null && fh != null) ? gh - fh : null;
+      out.rows.push({ ih: null, gh, sa });
       if(gh != null) out.last = gh;
     }
   }
@@ -441,6 +450,9 @@ function renderRows(){
       row.appendChild(blankCell());
       // GH入力
       row.appendChild(numInput(r.gh, v=>{ r.gh = v; }));
+      // FH（空欄）・差（空欄）
+      row.appendChild(blankCell());
+      row.appendChild(blankCell());
     }else{
       // BS（空欄）
       row.appendChild(blankCell());
@@ -450,6 +462,10 @@ function renderRows(){
       row.appendChild(numInput(r.fs, v=>{ r.fs = v; }));
       // GH（自動）
       row.appendChild(calcCell('ghCell'));
+      // FH入力（計画高・手入力）
+      row.appendChild(numInput(r.fh, v=>{ r.fh = v; }));
+      // 差（自動・GH−FH）
+      row.appendChild(calcCell('saCell'));
     }
 
     // 削除
@@ -499,6 +515,8 @@ function updateCalc(){
     if(ihEl) ihEl.textContent = fmt(res.rows[i].ih);
     const ghEl = rows[i].querySelector('.ghCell');
     if(ghEl) ghEl.textContent = fmt(res.rows[i].gh);
+    const saEl = rows[i].querySelector('.saCell');
+    if(saEl) saEl.textContent = fmt(res.rows[i].sa);
   }
 }
 
@@ -507,7 +525,7 @@ function addRow(kind){
     current.rows.push({kind:'BS', name:'', bs:'', gh:'', fs:''});
   }else{
     const n = current.rows.filter(r=>r.kind === 'FS').length + 1;
-    current.rows.push({kind:'FS', name:'測点' + n, fs:'', bs:'', gh:''});
+    current.rows.push({kind:'FS', name:'測点' + n, fs:'', bs:'', gh:'', fh:''});
   }
   save(); renderRows();
   const rows = $('rowsArea').children;
@@ -629,7 +647,7 @@ function sheetXml(rows){
     + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
     + '<cols>'
     + '<col min="1" max="1" width="14" customWidth="1"/>'
-    + '<col min="2" max="5" width="11" customWidth="1"/>'
+    + '<col min="2" max="7" width="11" customWidth="1"/>'
     + '</cols>'
     + '<sheetData>' + body + '</sheetData>'
     + '</worksheet>';
@@ -683,7 +701,7 @@ function buildXlsx(aoa){
   ]);
 }
 
-/* 測量データ → 野帳形式の表（測点 | BS | IH | FS | GH） */
+/* 測量データ → 野帳形式の表（測点 | BS | IH | FS | GH | FH | 差） */
 function surveyToAoa(s){
   const res = compute(s);
   const S = (v, st)=>({v, t:'s', s:st||0});
@@ -694,13 +712,13 @@ function surveyToAoa(s){
   aoa.push([S('測量名'), S(s.name || '（無題）')]);
   aoa.push([S('日付'), S(s.date)]);
   aoa.push([]);
-  aoa.push([S('測点',2), S('BS (mm)',2), S('IH (mm)',2), S('FS (mm)',2), S('GH (mm)',2)]);
+  aoa.push([S('測点',2), S('BS (mm)',2), S('IH (mm)',2), S('FS (mm)',2), S('GH (mm)',2), S('FH (mm)',2), S('差 (mm)',2)]);
   s.rows.forEach((r, i)=>{
     const c = res.rows[i];
     if(r.kind === 'BS'){
       aoa.push([ S(r.name), Nraw(r.bs), N(c.ih), null, Nraw(r.gh) ]);
     }else{
-      aoa.push([ S(r.name), null, null, Nraw(r.fs), N(c.gh) ]);
+      aoa.push([ S(r.name), null, null, Nraw(r.fs), N(c.gh), Nraw(r.fh), N(c.sa) ]);
     }
   });
   return aoa;
