@@ -1,6 +1,6 @@
 /* オフライン対応の仕組み（Service Worker）
    通常はネットから最新版を取得し、電波がないときは保存済みのコピーで動く */
-const CACHE = 'yacho-v1';
+const CACHE = 'yacho-v2';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])));
