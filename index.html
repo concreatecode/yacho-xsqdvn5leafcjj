@@ -103,11 +103,11 @@
   .gridRow-bs input.cell, .gridRow-bs .calcCell{background:var(--bsrow);}
   .gridRow-bs .calcCell{color:#9a6b15;}
   .gridRow-bs input.cell{border-color:#ecd9a0;}
-  .delBtn{
-    background:none; border:none; color:var(--sub); font-size:15px;
+  .rowMenu{
+    background:none; border:none; color:var(--sub); font-size:16px; font-weight:700;
     padding:0; border-radius:6px; min-height:40px;
   }
-  .delBtn:active{color:var(--danger);}
+  .rowMenu:active{color:var(--navy);}
   .legend{
     font-size:13px; color:var(--sub); padding:8px 4px 0; line-height:1.7;
   }
@@ -174,6 +174,17 @@
   }
   .sheetBtn.danger{color:var(--danger);}
   .sheetBtn:active{background:#f2f4f7;}
+  .sheet.sheetScroll{max-height:70vh; overflow-y:auto;}
+  .sheetBtn.pickBtn{display:flex; justify-content:space-between; align-items:center;}
+  .sheetBtn.pickBtn .ghSub{color:var(--sub); font-weight:400; font-size:14px; font-variant-numeric:tabular-nums;}
+
+  /* トースト（画面下に一瞬出るお知らせ） */
+  .toast{
+    position:fixed; bottom:34px; left:50%; transform:translateX(-50%);
+    background:rgba(30,58,95,.95); color:#fff; padding:10px 18px;
+    border-radius:20px; font-size:14px; z-index:99; max-width:88%;
+    opacity:0; transition:opacity .25s; pointer-events:none; text-align:center;
+  }
 
   .note{font-size:12px; color:var(--sub); text-align:center; margin-top:18px; line-height:1.7;}
 </style>
@@ -224,6 +235,7 @@
       <div class="lrow"><span class="mark markFs"></span><span>白い行＝測った点（FSを入力 → GH自動計算）</span></div>
       <div class="lrow"><span class="mark markFh"></span><span>水色の欄＝FH（計画高・手入力）</span></div>
       <div class="lrow"><span>差＝FH−GH（自動計算）</span></div>
+      <div class="lrow"><span>行の「⋯」＝削除／GHをデータシートに登録／データシートから選択（BS行）</span></div>
       <div class="lrow"><span>※単位はすべて mm</span></div>
     </div>
   </section>
@@ -249,6 +261,7 @@
 
 const KEY = 'level_surveys_v2';
 const OLD_KEY = 'level_surveys_v1';
+const PKEY = 'level_points_v1';   // 測点データシート（測点名＋GHの蓄積）
 
 /* ---------- データ ---------- */
 let surveys = [];
@@ -285,6 +298,38 @@ function migrateV1(){
 function addNum(a, b){ return (a != null && b != null) ? a + b : null; }
 function save(){
   localStorage.setItem(KEY, JSON.stringify(surveys));
+}
+
+/* ---------- 測点データシート（全測量で共有） ---------- */
+function loadPoints(){
+  try{ return JSON.parse(localStorage.getItem(PKEY)) || []; }
+  catch(e){ return []; }
+}
+function savePoints(pts){
+  localStorage.setItem(PKEY, JSON.stringify(pts));
+}
+/* 同じ測点名があれば上書き、なければ追加 */
+function registerPoint(name, gh){
+  const pts = loadPoints();
+  const i = pts.findIndex(p=>p.name === name);
+  const entry = { name, gh, updatedAt: Date.now() };
+  if(i >= 0) pts[i] = entry; else pts.push(entry);
+  savePoints(pts);
+}
+
+/* 画面下に一瞬出るお知らせ */
+let toastTimer = null;
+function toast(msg){
+  let t = document.querySelector('.toast');
+  if(!t){
+    t = document.createElement('div');
+    t.className = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  requestAnimationFrame(()=>{ t.style.opacity = '1'; });
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.style.opacity = '0'; }, 2400);
 }
 function today(){
   const d = new Date();
@@ -430,6 +475,113 @@ function openMenu(s){
   document.body.appendChild(ov);
 }
 
+/* 行メニュー（削除／GH登録／データシートから選択） */
+function openRowMenu(i){
+  const r = current.rows[i];
+  const ov = document.createElement('div');
+  ov.className = 'sheetOverlay';
+  const sheet = document.createElement('div');
+  sheet.className = 'sheet';
+  const close = ()=> ov.remove();
+
+  const title = document.createElement('div');
+  title.className = 'sheetTitle';
+  title.textContent = (r.name || (r.kind === 'BS' ? '器械点' : '測点')) + ' の操作';
+  sheet.appendChild(title);
+
+  const mkBtn = (text, fn, danger)=>{
+    const b = document.createElement('button');
+    b.className = 'sheetBtn' + (danger ? ' danger' : '');
+    b.textContent = text;
+    b.addEventListener('click', fn);
+    sheet.appendChild(b);
+    return b;
+  };
+
+  if(r.kind === 'BS'){
+    mkBtn('📋 データシートから選択（測点名・GH）', ()=>{
+      close();
+      openPointPicker(i);
+    });
+  }
+  mkBtn('📌 GHをデータシートに登録', ()=>{
+    const name = (r.name || '').trim();
+    let gh = r.kind === 'BS' ? num(r.gh) : compute(current).rows[i].gh;
+    if(!name){ alert('測点名を入力してから登録してください。'); return; }
+    if(gh == null){
+      alert(r.kind === 'BS'
+        ? 'GHを入力してから登録してください。'
+        : 'GHがまだ計算できていません。FSなどを入力してから登録してください。');
+      return;
+    }
+    gh = Math.round(gh);
+    registerPoint(name, gh);
+    close();
+    toast('📌 データシートに登録：' + name + '（GH ' + gh + '）');
+  });
+  mkBtn('🗑 行を削除', ()=>{
+    if(confirm('この行を削除しますか？')){
+      close();
+      current.rows.splice(i,1);
+      save(); renderRows();
+    }
+  }, true);
+  mkBtn('キャンセル', close);
+
+  ov.addEventListener('click', e=>{ if(e.target === ov) close(); });
+  ov.appendChild(sheet);
+  document.body.appendChild(ov);
+}
+
+/* データシートから測点を選んで、BS行に測点名とGHを入れる */
+function openPointPicker(i){
+  const pts = loadPoints().slice().sort((a,b)=> b.updatedAt - a.updatedAt);
+  if(pts.length === 0){
+    alert('データシートにまだ測点がありません。\n行メニュー（⋯）の「GHをデータシートに登録」で登録すると、ここから選べるようになります。');
+    return;
+  }
+  const r = current.rows[i];
+  const ov = document.createElement('div');
+  ov.className = 'sheetOverlay';
+  const sheet = document.createElement('div');
+  sheet.className = 'sheet sheetScroll';
+  const close = ()=> ov.remove();
+
+  const title = document.createElement('div');
+  title.className = 'sheetTitle';
+  title.textContent = '測点を選択（データシート）';
+  sheet.appendChild(title);
+
+  pts.forEach(p=>{
+    const b = document.createElement('button');
+    b.className = 'sheetBtn pickBtn';
+    const nm = document.createElement('span');
+    nm.textContent = p.name;
+    const gh = document.createElement('span');
+    gh.className = 'ghSub';
+    gh.textContent = 'GH ' + p.gh;
+    b.appendChild(nm); b.appendChild(gh);
+    b.addEventListener('click', ()=>{
+      r.name = p.name;
+      r.gh = String(p.gh);
+      save(); renderRows();
+      close();
+      toast('📋 ' + p.name + '（GH ' + p.gh + '）を入力しました');
+    });
+    sheet.appendChild(b);
+  });
+
+  const cancel = document.createElement('button');
+  cancel.className = 'sheetBtn';
+  cancel.textContent = 'キャンセル';
+  cancel.addEventListener('click', close);
+  sheet.appendChild(cancel);
+
+  ov.addEventListener('click', e=>{ if(e.target === ov) close(); });
+  ov.appendChild(sheet);
+  document.body.appendChild(ov);
+}
+
 /* ---------- 入力画面（野帳テーブル） ---------- */
 function renderRows(){
   const area = $('rowsArea');
@@ -444,7 +596,21 @@ function renderRows(){
     nameIn.className = 'cell nameIn';
     nameIn.value = r.name;
     nameIn.placeholder = r.kind === 'BS' ? '器械点' : '測点';
-    nameIn.addEventListener('input', ()=>{ r.name = nameIn.value; save(); });
+    nameIn.addEventListener('input', ()=>{
+      r.name = nameIn.value;
+      // BS行：手打ちした名前がデータシートにあれば、GHが空のとき自動補完
+      if(r.kind === 'BS' && !(r.gh || '').trim()){
+        const p = loadPoints().find(p=>p.name === nameIn.value.trim());
+        if(p){
+          r.gh = String(p.gh);
+          const ghIn = row.querySelectorAll('input')[2];
+          if(ghIn) ghIn.value = r.gh;
+          updateCalc();
+          toast('📋 データシートからGHを自動入力（' + p.gh + '）');
+        }
+      }
+      save();
+    });
     row.appendChild(nameIn);
 
     if(r.kind === 'BS'){
@@ -476,17 +642,13 @@ function renderRows(){
       row.appendChild(calcCell('saCell'));
     }
 
-    // 削除
-    const del = document.createElement('button');
-    del.className = 'delBtn';
-    del.textContent = '✕';
-    del.addEventListener('click', ()=>{
-      if(confirm('この行を削除しますか？')){
-        current.rows.splice(i,1);
-        save(); renderRows();
-      }
-    });
-    row.appendChild(del);
+    // 行メニュー（削除／データシート登録・選択）
+    const menu = document.createElement('button');
+    menu.className = 'rowMenu';
+    menu.textContent = '⋯';
+    menu.title = '行メニュー';
+    menu.addEventListener('click', ()=> openRowMenu(i));
+    row.appendChild(menu);
 
     area.appendChild(row);
   });
