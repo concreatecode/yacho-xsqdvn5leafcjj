@@ -184,11 +184,27 @@
   .pickRow{display:flex; gap:8px; align-items:stretch; margin-bottom:8px;}
   .pickRow .sheetBtn{flex:1; margin-bottom:0;}
   .pickDel{
-    flex:none; width:48px; background:#fff; border:1px solid var(--line);
+    flex:none; width:44px; background:#fff; border:1px solid var(--line);
     border-radius:10px; color:var(--danger); font-size:16px;
   }
   .pickDel:active{background:#fdecea;}
+  .pickEditBtn{color:var(--navy);}
+  .pickEditBtn:active{background:#e4ebf3;}
   .pickEmpty{text-align:center; color:var(--sub); font-size:14px; padding:14px 0;}
+
+  /* データシートの編集フォーム（名前・GHをその場で書き換え） */
+  .pickEditRow{display:flex; gap:6px; align-items:stretch; margin-bottom:8px;}
+  .pickEditRow input{
+    border:1px solid var(--accent); border-radius:10px; font-size:16px;
+    padding:8px 10px; min-width:0; background:#fff; color:var(--text);
+  }
+  .pickEditRow .peName{flex:1.4;}
+  .pickEditRow .peGh{flex:1; text-align:right; font-variant-numeric:tabular-nums;}
+  .pickEditRow button{
+    flex:none; width:44px; border-radius:10px; border:1px solid var(--line);
+    background:#fff; font-size:15px; font-weight:700; color:var(--sub);
+  }
+  .pickEditRow .peSave{color:#fff; background:var(--accent); border-color:var(--accent);}
 
   /* トースト（画面下に一瞬出るお知らせ） */
   .toast{
@@ -606,6 +622,12 @@ function openPointPicker(i){
         close();
         toast('📋 ' + p.name + '（GH ' + p.gh + '）を入力しました');
       });
+      // 編集ボタン（名前・GHをその場で書き換え）
+      const edit = document.createElement('button');
+      edit.className = 'pickDel pickEditBtn';
+      edit.textContent = '✏️';
+      edit.title = '名前・GHを編集';
+      edit.addEventListener('click', ()=> startEdit(p, rowDiv));
       // 削除ボタン
       const del = document.createElement('button');
       del.className = 'pickDel';
@@ -618,10 +640,61 @@ function openPointPicker(i){
           toast('🗑 ' + p.name + ' をデータシートから削除しました');
         }
       });
-      rowDiv.appendChild(b); rowDiv.appendChild(del);
+      rowDiv.appendChild(b); rowDiv.appendChild(edit); rowDiv.appendChild(del);
       listBox.appendChild(rowDiv);
     });
   }
+
+  /* その行を編集フォーム（名前・GH・保存・キャンセル）に切り替える */
+  function startEdit(p, rowDiv){
+    const form = document.createElement('div');
+    form.className = 'pickEditRow';
+
+    const nameIn = document.createElement('input');
+    nameIn.className = 'peName';
+    nameIn.type = 'text';
+    nameIn.value = p.name;
+    nameIn.placeholder = '測点名';
+
+    const ghIn = document.createElement('input');
+    ghIn.className = 'peGh';
+    ghIn.inputMode = 'decimal';
+    ghIn.value = p.gh;
+    ghIn.placeholder = 'GH';
+
+    const saveB = document.createElement('button');
+    saveB.className = 'peSave';
+    saveB.textContent = '✓';
+    saveB.title = '保存';
+    saveB.addEventListener('click', ()=>{
+      const newName = nameIn.value.trim();
+      const newGh = num(ghIn.value);
+      if(!newName){ alert('測点名を入力してください。'); return; }
+      if(newGh == null){ alert('GHは数値で入力してください。'); return; }
+      const pts = loadPoints();
+      if(newName !== p.name && pts.some(x=> x.name === newName)){
+        alert('「' + newName + '」は既にデータシートにあります。別の名前にしてください。');
+        return;
+      }
+      const idx = pts.findIndex(x=> x.name === p.name);
+      if(idx >= 0){
+        pts[idx] = { name: newName, gh: Math.round(newGh), updatedAt: Date.now() };
+        savePoints(pts);
+      }
+      renderPickList();
+      toast('✏️ 更新しました：' + newName + '（GH ' + Math.round(newGh) + '）');
+    });
+
+    const cancelB = document.createElement('button');
+    cancelB.textContent = '✕';
+    cancelB.title = 'やめる';
+    cancelB.addEventListener('click', renderPickList);
+
+    form.appendChild(nameIn); form.appendChild(ghIn);
+    form.appendChild(saveB); form.appendChild(cancelB);
+    rowDiv.replaceWith(form);
+  }
+
   search.addEventListener('input', renderPickList);
   renderPickList();
 
