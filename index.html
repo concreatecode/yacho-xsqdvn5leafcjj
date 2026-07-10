@@ -177,6 +177,18 @@
   .sheet.sheetScroll{max-height:70vh; overflow-y:auto;}
   .sheetBtn.pickBtn{display:flex; justify-content:space-between; align-items:center;}
   .sheetBtn.pickBtn .ghSub{color:var(--sub); font-weight:400; font-size:14px; font-variant-numeric:tabular-nums;}
+  .pickSearch{
+    width:100%; font-size:16px; padding:10px 12px; margin-bottom:10px;
+    border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--text);
+  }
+  .pickRow{display:flex; gap:8px; align-items:stretch; margin-bottom:8px;}
+  .pickRow .sheetBtn{flex:1; margin-bottom:0;}
+  .pickDel{
+    flex:none; width:48px; background:#fff; border:1px solid var(--line);
+    border-radius:10px; color:var(--danger); font-size:16px;
+  }
+  .pickDel:active{background:#fdecea;}
+  .pickEmpty{text-align:center; color:var(--sub); font-size:14px; padding:14px 0;}
 
   /* トースト（画面下に一瞬出るお知らせ） */
   .toast{
@@ -533,10 +545,9 @@ function openRowMenu(i){
   document.body.appendChild(ov);
 }
 
-/* データシートから測点を選んで、BS行に測点名とGHを入れる */
+/* データシートから測点を選んで、BS行に測点名とGHを入れる（検索・削除つき） */
 function openPointPicker(i){
-  const pts = loadPoints().slice().sort((a,b)=> b.updatedAt - a.updatedAt);
-  if(pts.length === 0){
+  if(loadPoints().length === 0){
     alert('データシートにまだ測点がありません。\n行メニュー（⋯）の「GHをデータシートに登録」で登録すると、ここから選べるようになります。');
     return;
   }
@@ -552,24 +563,67 @@ function openPointPicker(i){
   title.textContent = '測点を選択（データシート）';
   sheet.appendChild(title);
 
-  pts.forEach(p=>{
-    const b = document.createElement('button');
-    b.className = 'sheetBtn pickBtn';
-    const nm = document.createElement('span');
-    nm.textContent = p.name;
-    const gh = document.createElement('span');
-    gh.className = 'ghSub';
-    gh.textContent = 'GH ' + p.gh;
-    b.appendChild(nm); b.appendChild(gh);
-    b.addEventListener('click', ()=>{
-      r.name = p.name;
-      r.gh = String(p.gh);
-      save(); renderRows();
-      close();
-      toast('📋 ' + p.name + '（GH ' + p.gh + '）を入力しました');
+  // 検索欄
+  const search = document.createElement('input');
+  search.className = 'pickSearch';
+  search.type = 'text';
+  search.placeholder = '🔍 測点名で検索';
+  sheet.appendChild(search);
+
+  // 一覧（検索のたびに描き直す）
+  const listBox = document.createElement('div');
+  sheet.appendChild(listBox);
+
+  function renderPickList(){
+    listBox.innerHTML = '';
+    const q = search.value.trim().toLowerCase();
+    const pts = loadPoints()
+      .filter(p=> !q || p.name.toLowerCase().includes(q))
+      .sort((a,b)=> b.updatedAt - a.updatedAt);
+    if(pts.length === 0){
+      const d = document.createElement('div');
+      d.className = 'pickEmpty';
+      d.textContent = q ? '「' + search.value.trim() + '」に一致する測点がありません' : '登録された測点がありません';
+      listBox.appendChild(d);
+      return;
+    }
+    pts.forEach(p=>{
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'pickRow';
+      // 選択ボタン
+      const b = document.createElement('button');
+      b.className = 'sheetBtn pickBtn';
+      const nm = document.createElement('span');
+      nm.textContent = p.name;
+      const gh = document.createElement('span');
+      gh.className = 'ghSub';
+      gh.textContent = 'GH ' + p.gh;
+      b.appendChild(nm); b.appendChild(gh);
+      b.addEventListener('click', ()=>{
+        r.name = p.name;
+        r.gh = String(p.gh);
+        save(); renderRows();
+        close();
+        toast('📋 ' + p.name + '（GH ' + p.gh + '）を入力しました');
+      });
+      // 削除ボタン
+      const del = document.createElement('button');
+      del.className = 'pickDel';
+      del.textContent = '🗑';
+      del.title = 'データシートから削除';
+      del.addEventListener('click', ()=>{
+        if(confirm('「' + p.name + '」（GH ' + p.gh + '）をデータシートから削除しますか？')){
+          savePoints(loadPoints().filter(x=> x.name !== p.name));
+          renderPickList();
+          toast('🗑 ' + p.name + ' をデータシートから削除しました');
+        }
+      });
+      rowDiv.appendChild(b); rowDiv.appendChild(del);
+      listBox.appendChild(rowDiv);
     });
-    sheet.appendChild(b);
-  });
+  }
+  search.addEventListener('input', renderPickList);
+  renderPickList();
 
   const cancel = document.createElement('button');
   cancel.className = 'sheetBtn';
