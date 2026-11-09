@@ -36,7 +36,7 @@
     background:rgba(255,255,255,.15); color:#fff; border:none;
     border-radius:8px; font-size:16px; padding:8px 14px;
   }
-  main{max-width:560px; margin:0 auto; padding:16px 10px;}
+  main{max-width:560px; margin:0 auto; padding:16px 6px;}
   .hidden{display:none !important;}
 
   button{font-family:inherit; cursor:pointer;}
@@ -75,8 +75,8 @@
   .tableScroll{ overflow:visible; }
   .grid{
     display:grid;
-    grid-template-columns: 1.7fr repeat(6, 1fr) 18px;
-    gap:2px;
+    grid-template-columns: 1.5fr repeat(6, 1fr) 16px;
+    gap:1px;
     align-items:stretch;
     margin-bottom:4px;
   }
@@ -85,7 +85,8 @@
     text-align:center; padding:4px 0 2px;
   }
   .cell{
-    min-height:40px; border-radius:6px; font-size:12px;
+    /* 数値の文字サイズは、画面幅に合わせて「-88888」が欄に収まる大きさを自動で決める（fitNumFont） */
+    min-height:40px; border-radius:6px; font-size:var(--numFont, 12px);
     display:flex; align-items:center; justify-content:flex-end;
     padding:0 2px;
   }
@@ -95,6 +96,9 @@
   }
   input.cell.nameIn{text-align:left; font-weight:700; font-size:16px; padding:0 4px;}
   input.cell.fhInput{background:#e8f1fb; border-color:#b8d4f0;}
+  /* 数値は幅の狭い字体で表示（マイナス＋5桁を大きめの文字で収めるため） */
+  .cell:not(.nameIn){font-family:-apple-system, "Helvetica Neue", Arial, sans-serif; letter-spacing:-0.02em;}
+  .card.tableCard{padding:14px 4px;}
   .calcCell{
     background:#f2f7f4; color:var(--accent); font-weight:700;
     font-variant-numeric:tabular-nums; justify-content:flex-end;
@@ -152,59 +156,118 @@
   .menuBtn:active{background:var(--line);}
   .empty{text-align:center; color:var(--sub); font-size:14px; padding:30px 0;}
 
-  /* メニュー（下から出る選択画面） */
+  /* ======== 下から出る操作画面（行の「⋯」・一覧の「⋯」・データシート） ======== */
   .sheetOverlay{
-    position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:50;
+    position:fixed; inset:0; background:rgba(16,32,52,.42); z-index:50;
     display:flex; align-items:flex-end; justify-content:center;
+    animation:ovIn .2s ease-out;
   }
   .sheet{
-    background:var(--bg); width:100%; max-width:560px;
-    border-radius:16px 16px 0 0;
-    padding:14px 14px calc(14px + env(safe-area-inset-bottom));
+    background:#f3f5f8; width:100%; max-width:560px;
+    border-radius:18px 18px 0 0;
+    padding:8px 12px calc(12px + env(safe-area-inset-bottom));
+    box-shadow:0 -10px 30px rgba(16,32,52,.18);
+    animation:sheetUp .24s cubic-bezier(.2,.8,.2,1);
   }
-  .sheetTitle{
-    font-size:13px; color:var(--sub); text-align:center;
-    padding:4px 0 12px; font-weight:700;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .sheetOverlay.closing{animation:ovOut .16s ease-in forwards;}
+  .sheetOverlay.closing .sheet{animation:sheetDown .16s ease-in forwards;}
+  @keyframes ovIn{from{opacity:0}} @keyframes ovOut{to{opacity:0}}
+  @keyframes sheetUp{from{transform:translateY(100%)}} @keyframes sheetDown{to{transform:translateY(100%)}}
+  @media (prefers-reduced-motion: reduce){
+    .sheetOverlay, .sheet, .sheetOverlay.closing, .sheetOverlay.closing .sheet{animation:none;}
   }
-  .sheetBtn{
-    display:block; width:100%; background:#fff; border:1px solid var(--line);
-    border-radius:10px; font-size:16px; font-weight:700; padding:14px;
-    margin-bottom:8px; color:var(--text);
-  }
-  .sheetBtn.danger{color:var(--danger);}
-  .sheetBtn:active{background:#f2f4f7;}
-  .sheet.sheetScroll{max-height:70vh; overflow-y:auto;}
-  .sheetBtn.pickBtn{display:flex; justify-content:space-between; align-items:center;}
-  .sheetBtn.pickBtn .ghSub{color:var(--sub); font-weight:400; font-size:14px; font-variant-numeric:tabular-nums;}
-  .pickSearch{
-    width:100%; font-size:16px; padding:10px 12px; margin-bottom:10px;
-    border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--text);
-  }
-  .pickRow{display:flex; gap:8px; align-items:stretch; margin-bottom:8px;}
-  .pickRow .sheetBtn{flex:1; margin-bottom:0;}
-  .pickDel{
-    flex:none; width:44px; background:#fff; border:1px solid var(--line);
-    border-radius:10px; color:var(--danger); font-size:16px;
-  }
-  .pickDel:active{background:#fdecea;}
-  .pickEditBtn{color:var(--navy);}
-  .pickEditBtn:active{background:#e4ebf3;}
-  .pickEmpty{text-align:center; color:var(--sub); font-size:14px; padding:14px 0;}
+  .grab{width:38px; height:5px; border-radius:3px; background:#c8cfd8; margin:0 auto 12px;}
 
-  /* データシートの編集フォーム（名前・GHをその場で書き換え） */
-  .pickEditRow{display:flex; gap:6px; align-items:stretch; margin-bottom:8px;}
-  .pickEditRow input{
-    border:1px solid var(--accent); border-radius:10px; font-size:16px;
-    padding:8px 10px; min-width:0; background:#fff; color:var(--text);
+  /* 見出し：何を操作しているか */
+  .shHead{padding:0 4px 14px;}
+  .shTop{display:flex; align-items:center; gap:8px; min-width:0;}
+  .shKind{
+    flex:none; font-size:12px; font-weight:700; padding:3px 8px; border-radius:6px;
+    border:1px solid var(--line); background:#fff; color:var(--sub);
   }
-  .pickEditRow .peName{flex:1.4;}
-  .pickEditRow .peGh{flex:1; text-align:right; font-variant-numeric:tabular-nums;}
-  .pickEditRow button{
-    flex:none; width:44px; border-radius:10px; border:1px solid var(--line);
-    background:#fff; font-size:15px; font-weight:700; color:var(--sub);
+  .shKind.bs{background:var(--bsrow); border-color:#ecd9a0; color:#9a6b15;}
+  .shName{font-size:21px; font-weight:800; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .shSub{font-size:13px; color:var(--sub); margin-top:3px;}
+  /* その行の値（野帳と同じ色分け） */
+  .shRead{display:flex; margin-top:10px; background:#fff; border:1px solid #dde3ea; border-radius:10px; overflow:hidden;}
+  .shRead > div{flex:1; min-width:0; padding:6px 8px 7px;}
+  .shRead > div + div{border-left:1px solid #e8ecf1;}
+  .shRead .k{font-size:11px; font-weight:700; color:var(--sub);}
+  .shRead .v{font-size:16px; font-weight:700; text-align:right; font-variant-numeric:tabular-nums; color:var(--text);}
+  .shRead .v.calc{color:var(--accent);}
+  .shRead .v.calcBs{color:#9a6b15;}
+  .shRead .v.fh{color:#2c6aa8;}
+  .shRead .v.none{color:#b3bcc7; font-weight:400;}
+
+  /* 操作のまとまり（1枚の面を区切り線で分ける） */
+  .shGroup{background:#fff; border:1px solid #e1e6ec; border-radius:14px; overflow:hidden; margin-bottom:10px;}
+  .shItem{
+    position:relative; display:flex; align-items:center; gap:12px; width:100%;
+    padding:12px 14px; background:none; border:none; text-align:left;
+    font:inherit; color:var(--text); min-height:56px;
   }
-  .pickEditRow .peSave{color:#fff; background:var(--accent); border-color:var(--accent);}
+  .shItem + .shItem::before{content:''; position:absolute; top:0; left:56px; right:0; height:1px; background:#edf0f4;}
+  .shItem:active{background:#f1f4f8;}
+  .shItem:focus-visible, .shClose:focus-visible, .pkIcon:focus-visible{outline:2px solid var(--navy); outline-offset:-2px;}
+  .shItem[disabled]{color:#9aa5b2;}
+  .shItem[disabled] .shIcon{background:#f1f3f6; color:#aab3be;}
+  .shIcon{flex:none; width:30px; height:30px; border-radius:8px; display:grid; place-items:center; background:#e8eef6; color:var(--navy);}
+  .shIcon svg, .shChev svg, .pkIcon svg, .pkSearch svg{display:block; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+  .shIcon svg{width:18px; height:18px;}
+  .shText{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+  .shLabel{font-size:16px; font-weight:700;}
+  .shDesc{font-size:12.5px; color:var(--sub); line-height:1.45;}
+  .shChev{flex:none; color:#b3bcc7;}
+  .shChev svg{width:16px; height:16px;}
+  .shItem.danger{color:var(--danger);}
+  .shItem.danger .shIcon{background:#fbeaea; color:var(--danger);}
+  .shClose{
+    display:block; width:100%; min-height:50px; border-radius:14px;
+    border:1px solid #e1e6ec; background:#fff; font:inherit;
+    font-size:16px; font-weight:700; color:var(--navy);
+  }
+  .shClose:active{background:#f1f4f8;}
+
+  /* データシート（測点の一覧から選ぶ画面） */
+  .sheet.tall{max-height:86vh; display:flex; flex-direction:column;}
+  .sheet.tall .shScroll{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; margin:0 -2px; padding:0 2px;}
+  .shTitleRow{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:0 4px 12px;}
+  .shTitle{font-size:19px; font-weight:800; color:var(--text);}
+  .shCount{font-size:13px; color:var(--sub); font-variant-numeric:tabular-nums;}
+  .pkSearch{position:relative; margin-bottom:10px;}
+  .pkSearch svg{position:absolute; left:11px; top:50%; transform:translateY(-50%); width:18px; height:18px; color:var(--sub); pointer-events:none;}
+  .pkSearch input{
+    width:100%; font:inherit; font-size:16px; padding:11px 12px 11px 36px;
+    border:1px solid #dde3ea; border-radius:10px; background:#fff; color:var(--text);
+  }
+  .pkRow{position:relative; display:flex; align-items:center; min-height:56px;}
+  .pkRow + .pkRow::before, .pkEdit + .pkRow::before, .pkRow + .pkEdit::before{content:''; position:absolute; top:0; left:14px; right:0; height:1px; background:#edf0f4;}
+  .pkPick{
+    flex:1; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 6px 12px 14px; background:none; border:none; font:inherit; color:var(--text); text-align:left;
+    align-self:stretch;
+  }
+  .pkPick:active{background:#f1f4f8;}
+  .pkName{font-size:16px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pkGh{flex:none; font-size:16px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums;}
+  .pkGh small{font-size:11px; color:var(--sub); font-weight:700; margin-right:5px;}
+  .pkIcon{flex:none; width:40px; height:44px; display:grid; place-items:center; background:none; border:none; color:#9aa5b2; border-radius:8px;}
+  .pkIcon svg{width:18px; height:18px;}
+  .pkIcon:active{background:#f1f4f8; color:var(--navy);}
+  .pkIcon.del:active{background:#fbeaea; color:var(--danger);}
+  .pkIcon:last-child{margin-right:4px;}
+  .pkEmpty{text-align:center; color:var(--sub); font-size:14px; padding:22px 12px; line-height:1.6;}
+  /* 編集中の行 */
+  .pkEdit{position:relative; display:flex; gap:6px; align-items:center; padding:8px 10px; background:#f7fafc;}
+  .pkEdit input{
+    min-width:0; font:inherit; font-size:16px; padding:8px 10px; height:40px;
+    border:1px solid #c9d3de; border-radius:8px; background:#fff; color:var(--text);
+  }
+  .pkEdit input:focus{border-color:var(--accent);}
+  .pkEdit .peName{flex:1.4;}
+  .pkEdit .peGh{flex:1; text-align:right; font-variant-numeric:tabular-nums;}
+  .pkEdit button{flex:none; height:40px; padding:0 10px; border-radius:8px; border:none; font:inherit; font-size:14px; font-weight:700; background:none; color:var(--sub);}
+  .pkEdit .peSave{background:var(--accent); color:#fff;}
 
   /* トースト（画面下に一瞬出るお知らせ） */
   .toast{
@@ -219,18 +282,18 @@
   /* 数字入力中にキーボードの上に出るバー（iPhoneの数字キーボードにマイナスが無いため） */
   .signBar{
     position:fixed; left:0; right:0; bottom:0; z-index:98;
-    display:none; justify-content:space-between; align-items:center; gap:10px;
+    display:none; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;
     padding:6px 10px; background:#d3d7de; border-top:1px solid #b8bec7;
   }
-  .signBar.show{display:flex;}
+  .signBar.show{display:grid;}
   .signBar button{
     min-height:40px; border:none; border-radius:8px; font-size:17px; font-weight:700;
     background:#fff; color:var(--text); box-shadow:0 1px 0 rgba(0,0,0,.25);
     -webkit-user-select:none; user-select:none; touch-action:manipulation;
   }
-  .signBar .signBtn{min-width:130px; padding:0 16px;}
-  .signBar .signBtn:active{background:#e4ebf3;}
-  .signBar .doneBtn{padding:0 18px; background:transparent; box-shadow:none; color:var(--navy);}
+  .signBar button:active{background:#e4ebf3;}
+  .signBar .signBtn{grid-column:2; min-width:130px; padding:0 16px;}   /* 中央 */
+  .signBar .doneBtn{grid-column:3; justify-self:end; padding:0 16px;}  /* 右端・切替と同じ見た目 */
 </style>
 </head>
 <body>
@@ -258,7 +321,7 @@
     </label>
   </section>
 
-  <section class="card">
+  <section class="card tableCard">
     <div class="cardHead">野帳</div>
     <div class="tableScroll">
       <div class="grid" id="gridHead">
@@ -476,197 +539,280 @@ function renderList(){
   }
 }
 
-/* 一覧のメニュー（コピー／削除を選ぶ画面） */
-function openMenu(s){
+/* ---------- 下から出る操作画面の共通部品 ---------- */
+const ICONS = {
+  pick:  '<path d="M3.5 5.5h17v13h-17z"/><path d="M3.5 10h17M9.5 10v8.5"/>',
+  reg:   '<path d="M6.5 3.5h11v17l-5.5-3.8-5.5 3.8z"/><path d="M12 7.5v5.5M9.25 10.25h5.5"/>',
+  del:   '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10.25 10.5v5.5M13.75 10.5v5.5"/>',
+  copy:  '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V5.5a1 1 0 0 0-1-1h-9a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3"/>',
+  chev:  '<path d="M9 5.5l6.5 6.5L9 18.5"/>',
+  find:  '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>',
+  edit:  '<path d="M4.5 19.5l1-4.2L16 4.8l3.2 3.2L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>'
+};
+function svgIcon(name){
+  return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[name] + '</svg>';
+}
+/* マイナスは「−」（数学のマイナス記号）で表示する */
+function fmtSigned(x){
+  return x == null ? '—' : String(Math.round(x)).replace('-', '−');
+}
+
+/* 操作画面を開く。head＝見出し（要素）、groups＝ボタンのまとまり、opts.tall＝縦長（一覧つき） */
+function openSheet(head, groups, opts){
+  opts = opts || {};
   const ov = document.createElement('div');
   ov.className = 'sheetOverlay';
   const sheet = document.createElement('div');
-  sheet.className = 'sheet';
-  const close = ()=> ov.remove();
+  sheet.className = 'sheet' + (opts.tall ? ' tall' : '');
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
 
-  const title = document.createElement('div');
-  title.className = 'sheetTitle';
-  title.textContent = s.name || '（無題の測量）';
-  sheet.appendChild(title);
-
-  const mkBtn = (text, fn, danger)=>{
-    const b = document.createElement('button');
-    b.className = 'sheetBtn' + (danger ? ' danger' : '');
-    b.textContent = text;
-    b.addEventListener('click', fn);
-    sheet.appendChild(b);
-    return b;
+  let closed = false;
+  const close = ()=>{
+    if(closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKey);
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce){ ov.remove(); return; }
+    ov.classList.add('closing');
+    setTimeout(()=> ov.remove(), 170);
   };
-  mkBtn('⧉ コピーして新しい測量を作る', ()=>{
-    close();
-    const c = JSON.parse(JSON.stringify(s));
-    c.id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-    c.name = (s.name || '無題の測量') + '（コピー）';
-    c.date = today();
-    c.createdAt = Date.now();
-    surveys.push(c);
-    save(); showEdit(c);
+  const onKey = e=>{ if(e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+
+  const grab = document.createElement('div');
+  grab.className = 'grab';
+  sheet.appendChild(grab);
+  if(head) sheet.appendChild(head);
+
+  (groups || []).forEach(items=>{
+    const g = document.createElement('div');
+    g.className = 'shGroup';
+    items.forEach(it=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'shItem' + (it.danger ? ' danger' : '');
+      b.innerHTML = '<span class="shIcon">' + svgIcon(it.icon) + '</span>'
+        + '<span class="shText"><span class="shLabel"></span>'
+        + (it.desc ? '<span class="shDesc"></span>' : '') + '</span>'
+        + (it.chevron ? '<span class="shChev">' + svgIcon('chev') + '</span>' : '');
+      b.querySelector('.shLabel').textContent = it.label;
+      if(it.desc) b.querySelector('.shDesc').textContent = it.desc;
+      if(it.disabled) b.disabled = true;
+      b.addEventListener('click', ()=> it.onClick(close));
+      g.appendChild(b);
+    });
+    sheet.appendChild(g);
   });
-  mkBtn('🗑 削除する', ()=>{
-    if(confirm('「' + (s.name || '無題の測量') + '」を削除しますか？\nこの操作は取り消せません。')){
-      close();
-      surveys = surveys.filter(x=>x.id !== s.id);
-      save(); renderList();
-    }
-  }, true);
-  mkBtn('キャンセル', close);
+
+  if(opts.body) sheet.appendChild(opts.body);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'shClose';
+  closeBtn.textContent = '閉じる';
+  closeBtn.addEventListener('click', close);
+  sheet.appendChild(closeBtn);
 
   ov.addEventListener('click', e=>{ if(e.target === ov) close(); });
   ov.appendChild(sheet);
   document.body.appendChild(ov);
+  return close;
 }
 
-/* 行メニュー（削除／GH登録／データシートから選択） */
+/* 一覧のメニュー（コピー／削除） */
+function openMenu(s){
+  const head = document.createElement('div');
+  head.className = 'shHead';
+  head.innerHTML = '<div class="shTop"><div class="shName"></div></div><div class="shSub"></div>';
+  head.querySelector('.shName').textContent = s.name || '（無題の測量）';
+  head.querySelector('.shSub').textContent = s.date + '　' + s.rows.length + '行';
+
+  openSheet(head, [
+    [{
+      icon:'copy', label:'コピーして新しい測量を作る',
+      desc:'測点と観測値をそのまま写し、日付は今日にする',
+      onClick: close=>{
+        close();
+        const c = JSON.parse(JSON.stringify(s));
+        c.id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+        c.name = (s.name || '無題の測量') + '（コピー）';
+        c.date = today();
+        c.createdAt = Date.now();
+        surveys.push(c);
+        save(); showEdit(c);
+      }
+    }],
+    [{
+      icon:'del', label:'この測量を削除', danger:true,
+      onClick: close=>{
+        if(confirm('「' + (s.name || '無題の測量') + '」を削除しますか？\nこの操作は取り消せません。')){
+          close();
+          surveys = surveys.filter(x=>x.id !== s.id);
+          save(); renderList();
+        }
+      }
+    }]
+  ]);
+}
+
+/* 行メニュー（データシートから選ぶ／GHを登録／削除） */
 function openRowMenu(i){
   const r = current.rows[i];
-  const ov = document.createElement('div');
-  ov.className = 'sheetOverlay';
-  const sheet = document.createElement('div');
-  sheet.className = 'sheet';
-  const close = ()=> ov.remove();
+  const c = compute(current).rows[i];
+  const isBS = r.kind === 'BS';
 
-  const title = document.createElement('div');
-  title.className = 'sheetTitle';
-  title.textContent = (r.name || (r.kind === 'BS' ? '器械点' : '測点')) + ' の操作';
-  sheet.appendChild(title);
+  // 見出し：行の種類・測点名・その行の値
+  const head = document.createElement('div');
+  head.className = 'shHead';
+  head.innerHTML = '<div class="shTop"><span class="shKind"></span><div class="shName"></div></div>'
+                 + '<div class="shRead"></div>';
+  const kind = head.querySelector('.shKind');
+  kind.textContent = isBS ? '器械点' : '測点';
+  if(isBS) kind.classList.add('bs');
+  head.querySelector('.shName').textContent = r.name || '（名前なし）';
+  const cells = isBS
+    ? [['BS', num(r.bs), ''], ['IH', c.ih, 'calcBs'], ['GH', num(r.gh), '']]
+    : [['FS', num(r.fs), ''], ['GH', c.gh, 'calc'], ['FH', num(r.fh), 'fh'], ['差', c.sa, 'calc']];
+  const read = head.querySelector('.shRead');
+  cells.forEach(([k, v, cls])=>{
+    const d = document.createElement('div');
+    d.innerHTML = '<div class="k"></div><div class="v"></div>';
+    d.querySelector('.k').textContent = k;
+    const ve = d.querySelector('.v');
+    ve.textContent = fmtSigned(v);
+    ve.className = 'v ' + (v == null ? 'none' : cls);
+    read.appendChild(d);
+  });
 
-  const mkBtn = (text, fn, danger)=>{
-    const b = document.createElement('button');
-    b.className = 'sheetBtn' + (danger ? ' danger' : '');
-    b.textContent = text;
-    b.addEventListener('click', fn);
-    sheet.appendChild(b);
-    return b;
-  };
+  // 登録できるかどうか（できないときは理由を出す）
+  const name = (r.name || '').trim();
+  const ghVal = isBS ? num(r.gh) : c.gh;
+  let regDesc, regOk = false;
+  if(!name)              regDesc = '先に測点名を入力してください';
+  else if(ghVal == null) regDesc = isBS ? '先にGHを入力してください' : 'FSを入力するとGHが計算され、登録できます';
+  else { regOk = true;   regDesc = 'GH ' + fmtSigned(ghVal) + ' を保存して、次の測量でも使う'; }
 
-  if(r.kind === 'BS'){
-    mkBtn('📋 データシートから選択（測点名・GH）', ()=>{
-      close();
-      openPointPicker(i);
+  const main = [];
+  if(isBS){
+    main.push({
+      icon:'pick', label:'データシートから選ぶ', chevron:true,
+      desc:'登録済みの測点名とGHをこの行に入れる',
+      onClick: close=>{ close(); openPointPicker(i); }
     });
   }
-  mkBtn('📌 GHをデータシートに登録', ()=>{
-    const name = (r.name || '').trim();
-    let gh = r.kind === 'BS' ? num(r.gh) : compute(current).rows[i].gh;
-    if(!name){ alert('測点名を入力してから登録してください。'); return; }
-    if(gh == null){
-      alert(r.kind === 'BS'
-        ? 'GHを入力してから登録してください。'
-        : 'GHがまだ計算できていません。FSなどを入力してから登録してください。');
-      return;
-    }
-    gh = Math.round(gh);
-    registerPoint(name, gh);
-    close();
-    toast('📌 データシートに登録：' + name + '（GH ' + gh + '）');
-  });
-  mkBtn('🗑 行を削除', ()=>{
-    if(confirm('この行を削除しますか？')){
+  main.push({
+    icon:'reg', label:'GHをデータシートに登録', desc:regDesc, disabled:!regOk,
+    onClick: close=>{
+      const gh = Math.round(ghVal);
+      registerPoint(name, gh);
       close();
-      current.rows.splice(i,1);
-      save(); renderRows();
+      toast('データシートに登録しました：' + name + '（GH ' + fmtSigned(gh) + '）');
     }
-  }, true);
-  mkBtn('キャンセル', close);
+  });
 
-  ov.addEventListener('click', e=>{ if(e.target === ov) close(); });
-  ov.appendChild(sheet);
-  document.body.appendChild(ov);
+  openSheet(head, [
+    main,
+    [{
+      icon:'del', label:'この行を削除', danger:true,
+      onClick: close=>{
+        if(confirm('この行を削除しますか？')){
+          close();
+          current.rows.splice(i,1);
+          save(); renderRows();
+        }
+      }
+    }]
+  ]);
 }
 
-/* データシートから測点を選んで、BS行に測点名とGHを入れる（検索・削除つき） */
+/* データシートから測点を選んで、BS行に測点名とGHを入れる（検索・編集・削除つき） */
 function openPointPicker(i){
   if(loadPoints().length === 0){
-    alert('データシートにまだ測点がありません。\n行メニュー（⋯）の「GHをデータシートに登録」で登録すると、ここから選べるようになります。');
+    alert('データシートにまだ測点がありません。\n行の「⋯」→「GHをデータシートに登録」で登録すると、ここから選べるようになります。');
     return;
   }
   const r = current.rows[i];
-  const ov = document.createElement('div');
-  ov.className = 'sheetOverlay';
-  const sheet = document.createElement('div');
-  sheet.className = 'sheet sheetScroll';
-  const close = ()=> ov.remove();
 
-  const title = document.createElement('div');
-  title.className = 'sheetTitle';
-  title.textContent = '測点を選択（データシート）';
-  sheet.appendChild(title);
+  const head = document.createElement('div');
+  head.innerHTML = '<div class="shTitleRow"><div class="shTitle">データシートから選ぶ</div><div class="shCount"></div></div>'
+                 + '<label class="pkSearch">' + svgIcon('find')
+                 + '<input type="search" placeholder="測点名で絞り込む" aria-label="測点名で絞り込む"></label>';
+  const countEl = head.querySelector('.shCount');
+  const search = head.querySelector('input');
 
-  // 検索欄
-  const search = document.createElement('input');
-  search.className = 'pickSearch';
-  search.type = 'text';
-  search.placeholder = '🔍 測点名で検索';
-  sheet.appendChild(search);
-
-  // 一覧（検索のたびに描き直す）
+  const body = document.createElement('div');
+  body.className = 'shScroll';
   const listBox = document.createElement('div');
-  sheet.appendChild(listBox);
+  listBox.className = 'shGroup';
+  body.appendChild(listBox);
+
+  const close = openSheet(head, [], { tall:true, body });
 
   function renderPickList(){
     listBox.innerHTML = '';
+    const all = loadPoints();
+    countEl.textContent = all.length + '件';
     const q = search.value.trim().toLowerCase();
-    const pts = loadPoints()
+    const pts = all
       .filter(p=> !q || p.name.toLowerCase().includes(q))
       .sort((a,b)=> b.updatedAt - a.updatedAt);
     if(pts.length === 0){
       const d = document.createElement('div');
-      d.className = 'pickEmpty';
-      d.textContent = q ? '「' + search.value.trim() + '」に一致する測点がありません' : '登録された測点がありません';
+      d.className = 'pkEmpty';
+      d.textContent = q
+        ? '「' + search.value.trim() + '」を含む測点はありません'
+        : '登録された測点はありません。行の「⋯」から登録できます';
       listBox.appendChild(d);
       return;
     }
     pts.forEach(p=>{
-      const rowDiv = document.createElement('div');
-      rowDiv.className = 'pickRow';
-      // 選択ボタン
-      const b = document.createElement('button');
-      b.className = 'sheetBtn pickBtn';
-      const nm = document.createElement('span');
-      nm.textContent = p.name;
-      const gh = document.createElement('span');
-      gh.className = 'ghSub';
-      gh.textContent = 'GH ' + p.gh;
-      b.appendChild(nm); b.appendChild(gh);
-      b.addEventListener('click', ()=>{
+      const row = document.createElement('div');
+      row.className = 'pkRow';
+
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      pick.className = 'pkPick';
+      pick.innerHTML = '<span class="pkName"></span><span class="pkGh"><small>GH</small><span></span></span>';
+      pick.querySelector('.pkName').textContent = p.name;
+      pick.querySelector('.pkGh span').textContent = fmtSigned(p.gh);
+      pick.addEventListener('click', ()=>{
         r.name = p.name;
         r.gh = String(p.gh);
         save(); renderRows();
         close();
-        toast('📋 ' + p.name + '（GH ' + p.gh + '）を入力しました');
+        toast(p.name + '（GH ' + fmtSigned(p.gh) + '）を入れました');
       });
-      // 編集ボタン（名前・GHをその場で書き換え）
+
       const edit = document.createElement('button');
-      edit.className = 'pickDel pickEditBtn';
-      edit.textContent = '✏️';
-      edit.title = '名前・GHを編集';
-      edit.addEventListener('click', ()=> startEdit(p, rowDiv));
-      // 削除ボタン
+      edit.type = 'button';
+      edit.className = 'pkIcon';
+      edit.innerHTML = svgIcon('edit');
+      edit.setAttribute('aria-label', p.name + 'の名前・GHを直す');
+      edit.addEventListener('click', ()=> startEdit(p, row));
+
       const del = document.createElement('button');
-      del.className = 'pickDel';
-      del.textContent = '🗑';
-      del.title = 'データシートから削除';
+      del.type = 'button';
+      del.className = 'pkIcon del';
+      del.innerHTML = svgIcon('del');
+      del.setAttribute('aria-label', p.name + 'をデータシートから削除');
       del.addEventListener('click', ()=>{
-        if(confirm('「' + p.name + '」（GH ' + p.gh + '）をデータシートから削除しますか？')){
+        if(confirm('「' + p.name + '」（GH ' + fmtSigned(p.gh) + '）をデータシートから削除しますか？')){
           savePoints(loadPoints().filter(x=> x.name !== p.name));
           renderPickList();
-          toast('🗑 ' + p.name + ' をデータシートから削除しました');
+          toast(p.name + ' をデータシートから削除しました');
         }
       });
-      rowDiv.appendChild(b); rowDiv.appendChild(edit); rowDiv.appendChild(del);
-      listBox.appendChild(rowDiv);
+
+      row.appendChild(pick); row.appendChild(edit); row.appendChild(del);
+      listBox.appendChild(row);
     });
   }
 
-  /* その行を編集フォーム（名前・GH・保存・キャンセル）に切り替える */
-  function startEdit(p, rowDiv){
+  /* その行を編集フォーム（名前・GH・保存・やめる）に切り替える */
+  function startEdit(p, row){
     const form = document.createElement('div');
-    form.className = 'pickEditRow';
+    form.className = 'pkEdit';
 
     const nameIn = document.createElement('input');
     nameIn.className = 'peName';
@@ -681,9 +827,9 @@ function openPointPicker(i){
     ghIn.placeholder = 'GH';
 
     const saveB = document.createElement('button');
+    saveB.type = 'button';
     saveB.className = 'peSave';
-    saveB.textContent = '✓';
-    saveB.title = '保存';
+    saveB.textContent = '保存';
     saveB.addEventListener('click', ()=>{
       const newName = nameIn.value.trim();
       const newGh = num(ghIn.value);
@@ -700,31 +846,22 @@ function openPointPicker(i){
         savePoints(pts);
       }
       renderPickList();
-      toast('✏️ 更新しました：' + newName + '（GH ' + Math.round(newGh) + '）');
+      toast('保存しました：' + newName + '（GH ' + fmtSigned(Math.round(newGh)) + '）');
     });
 
     const cancelB = document.createElement('button');
-    cancelB.textContent = '✕';
-    cancelB.title = 'やめる';
+    cancelB.type = 'button';
+    cancelB.textContent = 'やめる';
     cancelB.addEventListener('click', renderPickList);
 
     form.appendChild(nameIn); form.appendChild(ghIn);
     form.appendChild(saveB); form.appendChild(cancelB);
-    rowDiv.replaceWith(form);
+    row.replaceWith(form);
+    nameIn.focus();
   }
 
   search.addEventListener('input', renderPickList);
   renderPickList();
-
-  const cancel = document.createElement('button');
-  cancel.className = 'sheetBtn';
-  cancel.textContent = 'キャンセル';
-  cancel.addEventListener('click', close);
-  sheet.appendChild(cancel);
-
-  ov.addEventListener('click', e=>{ if(e.target === ov) close(); });
-  ov.appendChild(sheet);
-  document.body.appendChild(ov);
 }
 
 /* ---------- 入力画面（野帳テーブル） ---------- */
@@ -751,7 +888,7 @@ function renderRows(){
           const ghIn = row.querySelectorAll('input')[2];
           if(ghIn) ghIn.value = r.gh;
           updateCalc();
-          toast('📋 データシートからGHを自動入力（' + p.gh + '）');
+          toast('データシートからGHを入れました（' + fmtSigned(p.gh) + '）');
         }
       }
       save();
@@ -797,8 +934,30 @@ function renderRows(){
 
     area.appendChild(row);
   });
+  fitNumFont();
   updateCalc();
 }
+
+/* 数値欄の文字サイズを決める：マイナス＋5桁（-88888）がちょうど見える大きさ。
+   入力欄と自動計算欄（太字）の両方で測り、小さい方に揃える。 */
+const measureCtx = document.createElement('canvas').getContext('2d');
+function fitNumFont(){
+  const inp = document.querySelector('#rowsArea input.cell:not(.nameIn)');
+  const calc = document.querySelector('#rowsArea .calcCell');
+  if(!inp || !inp.clientWidth) return;
+  const sizeFor = (el)=>{
+    const cs = getComputedStyle(el);
+    const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 3; // カーソル分の余白
+    measureCtx.font = `${cs.fontWeight} 100px ${cs.fontFamily}`;
+    const w = Math.max(...['-88888','-00000','-44444'].map(t=>measureCtx.measureText(t).width));
+    return avail / w * 100;
+  };
+  let size = sizeFor(inp);
+  if(calc && calc.clientWidth) size = Math.min(size, sizeFor(calc));
+  size = Math.max(8, Math.min(14, Math.floor(size * 2) / 2));   // 8〜14px、0.5px刻み
+  document.documentElement.style.setProperty('--numFont', size + 'px');
+}
+window.addEventListener('resize', fitNumFont);
 
 function numInput(value, onChange){
   const inp = document.createElement('input');
