@@ -215,6 +215,22 @@
   }
 
   .note{font-size:12px; color:var(--sub); text-align:center; margin-top:18px; line-height:1.7;}
+
+  /* 数字入力中にキーボードの上に出るバー（iPhoneの数字キーボードにマイナスが無いため） */
+  .signBar{
+    position:fixed; left:0; right:0; bottom:0; z-index:98;
+    display:none; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; background:#d3d7de; border-top:1px solid #b8bec7;
+  }
+  .signBar.show{display:flex;}
+  .signBar button{
+    min-height:40px; border:none; border-radius:8px; font-size:17px; font-weight:700;
+    background:#fff; color:var(--text); box-shadow:0 1px 0 rgba(0,0,0,.25);
+    -webkit-user-select:none; user-select:none; touch-action:manipulation;
+  }
+  .signBar .signBtn{min-width:130px; padding:0 16px;}
+  .signBar .signBtn:active{background:#e4ebf3;}
+  .signBar .doneBtn{padding:0 18px; background:transparent; box-shadow:none; color:var(--navy);}
 </style>
 </head>
 <body>
@@ -264,6 +280,7 @@
       <div class="lrow"><span class="mark markFh"></span><span>水色の欄＝FH（計画高・手入力）</span></div>
       <div class="lrow"><span>差＝FH−GH（自動計算）</span></div>
       <div class="lrow"><span>行の「⋯」＝削除／GHをデータシートに登録／データシートから選択（BS行）</span></div>
+      <div class="lrow"><span>マイナスは、数字の欄を選ぶとキーボードの上に出る「−/＋ 切替」で入力</span></div>
       <div class="lrow"><span>※単位はすべて mm</span></div>
     </div>
   </section>
@@ -375,7 +392,8 @@ function newSurvey(){
 /* ---------- 計算（器高式） ---------- */
 function num(v){
   if(v === '' || v == null) return null;
-  const x = parseFloat(v);
+  // 全角のマイナス記号（−／－）も半角の「-」として読む
+  const x = parseFloat(String(v).replace(/[−－]/g, '-'));
   return isNaN(x) ? null : x;
 }
 function fmt(x){
@@ -1035,6 +1053,69 @@ function exportExcel(s){
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/* ---------- マイナス入力バー ----------
+   数字の欄（BS・GH・FS・FH・データシートのGH）を選ぶと、キーボードのすぐ上に
+   「−/＋」ボタンを出す。押すと入力中の数字の符号を切り替える。 */
+const signBar = document.createElement('div');
+signBar.className = 'signBar';
+signBar.innerHTML = '<button type="button" class="signBtn">−/＋ 切替</button>'
+                  + '<button type="button" class="doneBtn">完了</button>';
+document.body.appendChild(signBar);
+let signTarget = null;
+
+function isNumField(el){
+  return !!el && el.tagName === 'INPUT' && el.inputMode === 'decimal';
+}
+/* キーボードの上端にバーを合わせる */
+function placeSignBar(){
+  const vv = window.visualViewport;
+  const bottom = vv ? window.innerHeight - (vv.height + vv.offsetTop) : 0;
+  signBar.style.bottom = Math.max(0, bottom) + 'px';
+}
+/* 入力欄がバーの裏に隠れたら少しスクロールして見せる */
+function revealTarget(){
+  if(!signTarget) return;
+  const vv = window.visualViewport;
+  const visibleBottom = (vv ? vv.height : window.innerHeight) - signBar.offsetHeight - 8;
+  const r = signTarget.getBoundingClientRect();
+  if(r.bottom > visibleBottom) window.scrollBy(0, r.bottom - visibleBottom);
+}
+function toggleSign(){
+  const inp = signTarget;
+  if(!inp) return;
+  let v = inp.value.trim();
+  v = /^[-−－]/.test(v) ? v.slice(1) : '-' + v;
+  inp.value = v;
+  inp.dispatchEvent(new Event('input', {bubbles:true}));   // 保存・再計算を走らせる
+  try{ inp.setSelectionRange(v.length, v.length); }catch(e){}
+}
+/* ボタンを押しても入力欄からフォーカスが外れない（キーボードが閉じない）ようにする */
+function bindTap(btn, fn){
+  btn.addEventListener('touchstart', e=>{ e.preventDefault(); fn(); }, {passive:false});
+  btn.addEventListener('mousedown',  e=>{ e.preventDefault(); fn(); });
+}
+bindTap(signBar.querySelector('.signBtn'), toggleSign);
+bindTap(signBar.querySelector('.doneBtn'), ()=>{ if(signTarget) signTarget.blur(); });
+
+document.addEventListener('focusin', e=>{
+  if(!isNumField(e.target)) return;
+  signTarget = e.target;
+  signBar.classList.add('show');
+  placeSignBar();
+  setTimeout(()=>{ placeSignBar(); revealTarget(); }, 350);   // キーボードが出きってから
+});
+document.addEventListener('focusout', ()=>{
+  setTimeout(()=>{
+    if(isNumField(document.activeElement)) return;   // 次の数字欄へ移っただけなら出したまま
+    signBar.classList.remove('show');
+    signTarget = null;
+  }, 60);
+});
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', placeSignBar);
+  window.visualViewport.addEventListener('scroll', placeSignBar);
 }
 
 /* ---------- 起動 ---------- */
